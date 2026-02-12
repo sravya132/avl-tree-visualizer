@@ -17,5 +17,3 @@ https://yourusername.github.io/avl-tree-visualizer/
 - CSS3
 - JavaScript (ES6)
 
-## 📸 Preview
-![Preview](assets/preview.png)
