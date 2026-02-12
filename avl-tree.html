@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Advanced AVL Tree Visualizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* ====== GLOBAL STYLING ====== */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(-45deg, #1f1c2c, #928dab, #232526, #414345);
+    background-size: 400% 400%;
+    animation: gradientMove 12s ease infinite;
+    color: white;
+    overflow-x: hidden;
+}
+
+@keyframes gradientMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-top: 20px;
+    letter-spacing: 2px;
+}
+
+/* ====== CONTROL PANEL ====== */
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px;
+}
+
+.glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 15px 25px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+
+input {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+}
+
+button {
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    background: linear-gradient(45deg, #00c6ff, #0072ff);
+    color: white;
+    transition: 0.3s ease;
+}
+
+button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px #00c6ff;
+}
+
+/* ====== TREE AREA ====== */
+#tree {
+    position: relative;
+    width: 100%;
+    height: 600px;
+}
+
+.node {
+    position: absolute;
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #ff6a00, #ee0979);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    transition: 0.5s ease;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+.node span {
+    font-size: 11px;
+    position: absolute;
+    bottom: -18px;
+    opacity: 0.7;
+}
+
+svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<h1>AVL Tree Visualizer</h1>
+
+<div class="controls glass">
+    <input type="number" id="valueInput" placeholder="Enter number">
+    <button onclick="insertValue()">Insert</button>
+    <button onclick="resetTree()">Reset</button>
+</div>
+
+<div id="tree">
+    <svg id="lines"></svg>
+</div>
+
+<script>
+class Node {
+    constructor(value) {
+        this.value = value;
+        this.left = null;
+        this.right = null;
+        this.height = 1;
+        this.x = 0;
+        this.y = 0;
+    }
+}
+
+class AVLTree {
+    constructor() {
+        this.root = null;
+    }
+
+    height(node) {
+        return node ? node.height : 0;
+    }
+
+    updateHeight(node) {
+        node.height = 1 + Math.max(this.height(node.left), this.height(node.right));
+    }
+
+    balanceFactor(node) {
+        return this.height(node.left) - this.height(node.right);
+    }
+
+    rotateRight(y) {
+        let x = y.left;
+        let T2 = x.right;
+        x.right = y;
+        y.left = T2;
+        this.updateHeight(y);
+        this.updateHeight(x);
+        return x;
+    }
+
+    rotateLeft(x) {
+        let y = x.right;
+        let T2 = y.left;
+        y.left = x;
+        x.right = T2;
+        this.updateHeight(x);
+        this.updateHeight(y);
+        return y;
+    }
+
+    insert(node, value) {
+        if (!node) return new Node(value);
+
+        if (value < node.value)
+            node.left = this.insert(node.left, value);
+        else if (value > node.value)
+            node.right = this.insert(node.right, value);
+        else
+            return node;
+
+        this.updateHeight(node);
+
+        let balance = this.balanceFactor(node);
+
+        // LL
+        if (balance > 1 && value < node.left.value)
+            return this.rotateRight(node);
+
+        // RR
+        if (balance < -1 && value > node.right.value)
+            return this.rotateLeft(node);
+
+        // LR
+        if (balance > 1 && value > node.left.value) {
+            node.left = this.rotateLeft(node.left);
+            return this.rotateRight(node);
+        }
+
+        // RL
+        if (balance < -1 && value < node.right.value) {
+            node.right = this.rotateRight(node.right);
+            return this.rotateLeft(node);
+        }
+
+        return node;
+    }
+
+    insertValue(value) {
+        this.root = this.insert(this.root, value);
+    }
+}
+
+let avl = new AVLTree();
+
+function insertValue() {
+    const value = parseInt(document.getElementById("valueInput").value);
+    if (!isNaN(value)) {
+        avl.insertValue(value);
+        renderTree();
+        document.getElementById("valueInput").value = "";
+    }
+}
+
+function resetTree() {
+    avl = new AVLTree();
+    renderTree();
+}
+
+function renderTree() {
+    const container = document.getElementById("tree");
+    const svg = document.getElementById("lines");
+    container.querySelectorAll(".node").forEach(n => n.remove());
+    svg.innerHTML = "";
+
+    function setPosition(node, x, y, gap) {
+        if (!node) return;
+        node.x = x;
+        node.y = y;
+        if (node.left) setPosition(node.left, x - gap, y + 100, gap / 1.7);
+        if (node.right) setPosition(node.right, x + gap, y + 100, gap / 1.7);
+    }
+
+    setPosition(avl.root, window.innerWidth / 2, 60, 200);
+
+    function draw(node) {
+        if (!node) return;
+
+        if (node.left) {
+            drawLine(node, node.left);
+            draw(node.left);
+        }
+        if (node.right) {
+            drawLine(node, node.right);
+            draw(node.right);
+        }
+
+        const div = document.createElement("div");
+        div.className = "node";
+        div.style.left = node.x - 27 + "px";
+        div.style.top = node.y + "px";
+        div.innerHTML = node.value + `<span>h:${node.height}</span>`;
+        container.appendChild(div);
+    }
+
+    function drawLine(parent, child) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", parent.x);
+        line.setAttribute("y1", parent.y + 27);
+        line.setAttribute("x2", child.x);
+        line.setAttribute("y2", child.y);
+        line.setAttribute("stroke", "white");
+        line.setAttribute("stroke-width", "2");
+        svg.appendChild(line);
+    }
+
+    draw(avl.root);
+}
+</script>
+
+</body>
+</html>
